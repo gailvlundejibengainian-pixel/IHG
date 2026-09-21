@@ -5,7 +5,7 @@ name: IHG Points Watcher
 # 2) 手动：Actions 页面点 "Run workflow" 随时跑一次
 on:
   schedule:
-    - cron: "0 * * * *"
+    - cron: */15 * * * *"
   workflow_dispatch: {}
 
 permissions:
