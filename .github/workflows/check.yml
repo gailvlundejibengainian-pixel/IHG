@@ -1,0 +1,58 @@
+name: IHG Points Watcher
+
+# 触发方式：
+# 1) 定时：每小时整点跑一次（GitHub Actions cron 为 UTC 时间，比北京时间慢 8 小时）
+# 2) 手动：Actions 页面点 "Run workflow" 随时跑一次
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # ── 恢复上次状态（用来判断状态是否翻转、避免每小时重复发邮件）──
+      - name: Restore last status
+        uses: actions/cache/restore@v4
+        with:
+          path: .status
+          key: ihg-status-v1
+          restore-keys: |
+            ihg-status-
+
+      # ── 运行检查 ──────────────────────────────────────────────
+      # 修改下面 3 个环境变量即可换酒店 / 换日期：
+      #   IHG_HOTEL_CODES  酒店代码（详情页 URL 里那段），多个用逗号分隔
+      #   IHG_CHECKIN      入住日期 YYYY-MM-DD
+      #   IHG_CHECKOUT     退房日期 YYYY-MM-DD
+      # RESEND_API_KEY / NOTIFY_EMAIL 放在仓库 Settings → Secrets and variables → Actions
+      - name: Run check
+        env:
+          IHG_HOTEL_CODES: "OKJJA"
+          IHG_CHECKIN: "2026-10-03"
+          IHG_CHECKOUT: "2026-10-04"
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+        run: python check_ihg.py
+
+      # ── 保存本次状态（供下次运行对比）────────────────────────
+      - name: Save status
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .status
+          key: ihg-status-v1-${{ github.run_id }}
